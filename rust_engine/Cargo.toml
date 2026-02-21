@@ -1,0 +1,20 @@
+[package]
+name = "rust_engine"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.102"
+arrow-array = "57.3.0"
+arrow-schema = "57.3.0"
+candle-core = "0.9.2"
+candle-nn = "0.9.2"
+candle-transformers = "0.9.2"
+clap = { version = "4.5.60", features = ["derive"] }
+futures = "0.3.32"
+hf-hub = "0.5.0"
+lancedb = "0.26.2"
+rusqlite = { version = "0.38.0", features = ["bundled"] }
+serde_json = "1.0.149"
+tokenizers = "0.22.2"
+tokio = { version = "1.49.0", features = ["full"] }
