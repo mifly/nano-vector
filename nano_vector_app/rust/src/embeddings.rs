@@ -16,7 +16,7 @@ impl TextEmbeddingModel {
         let device = Device::Cpu;
 
         println!("Loading bge-small-zh-v1.5 model from Hugging Face Hub (this might take a while on first run)...");
-        let api = Api::new().context("Failed to create Hugging Face API")?;
+        let api = hf_hub::api::sync::Api::new().context("Failed to create Hugging Face API")?;
         let repo = api.repo(Repo::with_revision(
             "BAAI/bge-small-zh-v1.5".to_string(),
             RepoType::Model,

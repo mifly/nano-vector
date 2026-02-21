@@ -10,7 +10,7 @@
 *   **Protoc**: LanceDB 编译需要 protobuf 编译器 (`protoc`)。
 *   **C 编译器**: Linux 下需要 `clang` 和 `cmake`。
 
-### 安装依赖 (Ubuntu/Debian 示例)
+### 安装依赖 (Ubuntu/Debian)
 ```bash
 # 安装编译工具
 sudo apt-get update
@@ -21,6 +21,20 @@ curl -LO https://github.com/protocolbuffers/protobuf/releases/download/v25.1/pro
 unzip protoc-25.1-linux-x86_64.zip -d ~/.local
 export PATH="$HOME/.local/bin:$PATH"
 ```
+
+### 安装依赖 (macOS)
+```bash
+# 安装 Homebrew (如未安装)
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# 安装编译工具
+brew install cmake ninja protobuf
+
+# 验证 protoc 安装
+protoc --version  # 建议 25+
+```
+
+> **注意**: macOS 下还需要完整安装 Xcode (包括 Command Line Tools)，可通过 `xcode-select --install` 安装命令行工具。
 
 ## 2. 项目结构
 
@@ -52,19 +66,43 @@ export PROTOC=$HOME/.local/bin/protoc  # 确保编译能找到 protoc
 flutter run -d linux
 ```
 
+### 3.3 Flutter + Rust 应用编译 (macOS 桌面)
+在 `nano_vector_app` 目录下执行：
+```bash
+# 安装 Flutter 依赖
+flutter pub get
+
+# 生成 FFI 绑定代码 (仅当修改了 rust/src/api/*.rs 时需要)
+flutter_rust_bridge_codegen generate
+
+# 编译运行 macOS 桌面应用
+flutter run -d macos
+```
+
+> **提示**: macOS 下 protoc 通过 Homebrew 安装后会自动加入 PATH，无需手动设置环境变量。
+
 ## 4. 调试与常见问题
 
 ### 4.1 模型下载失败
 应用启动后会从 HuggingFace 自动下载 `bge-small-zh-v1.5` 模型文件。
 *   **现象**: 界面长时间卡在 "Loading Weights..." 或控制台报错。
 *   **原因**: 默认从 `huggingface.co` 下载，受限于网络环境。
-*   **解决**: 
+*   **解决**:
     1.  配置代理或使用镜像。
     2.  手动下载 `config.json`, `tokenizer.json`, `model.safetensors` 到本地缓存目录 (默认为 `~/.cache/huggingface`)。
 
+### 4.1.1 macOS 沙箱网络权限 (Operation not permitted)
+*   **现象**: 启动时报错 `io: Operation not permitted (os error 1)`，无法下载模型。
+*   **原因**: macOS 沙箱默认禁止出站网络请求。
+*   **解决**: 已在 `macos/Runner/*.entitlements` 中配置 `com.apple.security.network.client`。如仍遇到问题，检查 entitlements 文件是否包含：
+    ```xml
+    <key>com.apple.security.network.client</key>
+    <true/>
+    ```
+
 ### 4.2 数据库路径
 在开发调试时，应用数据保存在：
-*   **Linux**: `nano_vector_app/data/` (本项目测试代码配置)。
+*   **Linux/macOS**: `nano_vector_app/data/` (本项目测试代码配置)。
 *   **生产环境**: 通常在 App 的 ApplicationDocumentsDirectory 下。
 
 ### 4.3 多线程安全 (Send/Sync)
@@ -77,6 +115,25 @@ flutter run -d linux
 flutter_rust_bridge_codegen generate
 ```
 确保 `rust/src/api/simple.rs` 中的函数是 `pub` 且参数类型可序列化。
+
+### 4.5 macOS 链接错误 (Undefined symbols)
+在 macOS 上编译时可能遇到 `Undefined symbols for architecture arm64` 错误，涉及 `_SC*` 符号 (SystemConfiguration) 和 C++ 标准库符号。
+
+*   **原因**: Rust 依赖的 `hyper_util`、`system_configuration` 等 crate 需要链接 macOS 系统框架，`tokenizers` crate 包含 C++ 代码。
+*   **解决**: 已在 `rust_builder/macos/rust_engine_ffi.podspec` 中配置。如仍遇到问题，确保 podspec 包含：
+    ```ruby
+    s.frameworks = 'SystemConfiguration'
+    s.library = 'c++'
+    ```
+*   **清理重建**:
+    ```bash
+    cd nano_vector_app/macos
+    rm -rf Pods Podfile.lock
+    pod install
+    cd ..
+    flutter clean
+    flutter run -d macos
+    ```
 
 ## 5. 关键依赖版本
 *   `flutter_rust_bridge`: `2.11.1`
