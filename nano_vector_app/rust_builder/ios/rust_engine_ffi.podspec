@@ -42,4 +42,9 @@ A new Flutter FFI plugin project.
     'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386',
     'OTHER_LDFLAGS' => '-force_load ${BUILT_PRODUCTS_DIR}/librust_engine_ffi.a',
   }
+  
+  # Required frameworks for Rust dependencies
+  s.frameworks = 'SystemConfiguration'
+  # Required for C++ symbols used by tokenizers crate (esaxx)
+  s.library = 'c++'
 end

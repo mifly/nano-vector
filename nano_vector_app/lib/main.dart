@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:nano_vector_app/src/rust/api/simple.dart';
 import 'package:nano_vector_app/src/rust/frb_generated.dart';
 import 'package:nano_vector_app/index_page.dart';
@@ -12,7 +13,8 @@ Future<void> main() async {
   await RustLib.init();
 
   // Initialize paths in app's local directory
-  final dir = Directory.current.path;
+  final docDir = await getApplicationDocumentsDirectory();
+  final dir = docDir.path;
   final dbPath = '$dir/data/app.db';
   final vectorDbPath = '$dir/data/vector_db';
 
