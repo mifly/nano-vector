@@ -12,20 +12,32 @@ pub struct TextEmbeddingModel {
 }
 
 impl TextEmbeddingModel {
-    pub async fn new() -> Result<Self> {
+    pub async fn new(local_path: Option<String>) -> Result<Self> {
         let device = Device::Cpu;
 
-        println!("Loading bge-small-zh-v1.5 model from Hugging Face Hub (this might take a while on first run)...");
-        let api = hf_hub::api::tokio::Api::new().context("Failed to create Hugging Face API")?;
-        let repo = api.repo(Repo::with_revision(
-            "BAAI/bge-small-zh-v1.5".to_string(),
-            RepoType::Model,
-            "main".to_string(),
-        ));
+        let (config_filename, tokenizer_filename, weights_filename) = if let Some(path) = local_path {
+            println!("Loading model from local path: {}", path);
+            let base_path = std::path::Path::new(&path);
+            (
+                base_path.join("config.json").to_path_buf(),
+                base_path.join("tokenizer.json").to_path_buf(),
+                base_path.join("model.safetensors").to_path_buf()
+            )
+        } else {
+            println!("Loading bge-small-zh-v1.5 model from Hugging Face Hub (this might take a while on first run)...");
+            let api = hf_hub::api::tokio::Api::new().context("Failed to create Hugging Face API")?;
+            let repo = api.repo(Repo::with_revision(
+                "BAAI/bge-small-zh-v1.5".to_string(),
+                RepoType::Model,
+                "main".to_string(),
+            ));
 
-        let config_filename = repo.get("config.json").await.context("Failed to get config.json")?;
-        let tokenizer_filename = repo.get("tokenizer.json").await.context("Failed to get tokenizer.json")?;
-        let weights_filename = repo.get("model.safetensors").await.context("Failed to get model.safetensors")?;
+            (
+                repo.get("config.json").await.context("Failed to get config.json")?,
+                repo.get("tokenizer.json").await.context("Failed to get tokenizer.json")?,
+                repo.get("model.safetensors").await.context("Failed to get model.safetensors")?
+            )
+        };
 
         println!("Initializing Tokenizer...");
         let tokenizer = Tokenizer::from_file(tokenizer_filename)

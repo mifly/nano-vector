@@ -22,3 +22,12 @@ sqlite-vec = "0.1.6"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }
+
+# Optimization is required for Candle even in debug mode
+[profile.dev]
+opt-level = 3
+
+[profile.release]
+opt-level = 3
+lto = true
+

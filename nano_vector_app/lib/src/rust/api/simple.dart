@@ -12,9 +12,11 @@ abstract class AppCore implements RustOpaqueInterface {
 
   // HINT: Make it `#[frb(sync)]` to let it become the default constructor of Dart class.
   static Future<AppCore> newInstance(
-          {required String dbPath, required String vectorDbPath}) =>
-      RustLib.instance.api
-          .crateApiSimpleAppCoreNew(dbPath: dbPath, vectorDbPath: vectorDbPath);
+          {required String dbPath,
+          required String vectorDbPath,
+          String? modelPath}) =>
+      RustLib.instance.api.crateApiSimpleAppCoreNew(
+          dbPath: dbPath, vectorDbPath: vectorDbPath, modelPath: modelPath);
 
   Future<List<SearchResult>> searchText(
       {required String query, required BigInt limit});

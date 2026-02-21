@@ -85,7 +85,9 @@ abstract class RustLibApi extends BaseApi {
       {required AppCore that, required String text});
 
   Future<AppCore> crateApiSimpleAppCoreNew(
-      {required String dbPath, required String vectorDbPath});
+      {required String dbPath,
+      required String vectorDbPath,
+      String? modelPath});
 
   Future<List<SearchResult>> crateApiSimpleAppCoreSearchText(
       {required AppCore that, required String query, required BigInt limit});
@@ -137,12 +139,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @override
   Future<AppCore> crateApiSimpleAppCoreNew(
-      {required String dbPath, required String vectorDbPath}) {
+      {required String dbPath,
+      required String vectorDbPath,
+      String? modelPath}) {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_String(dbPath, serializer);
         sse_encode_String(vectorDbPath, serializer);
+        sse_encode_opt_String(modelPath, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
             funcId: 2, port: port_);
       },
@@ -152,14 +157,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         decodeErrorData: sse_decode_AnyhowException,
       ),
       constMeta: kCrateApiSimpleAppCoreNewConstMeta,
-      argValues: [dbPath, vectorDbPath],
+      argValues: [dbPath, vectorDbPath, modelPath],
       apiImpl: this,
     ));
   }
 
   TaskConstMeta get kCrateApiSimpleAppCoreNewConstMeta => const TaskConstMeta(
         debugName: "AppCore_new",
-        argNames: ["dbPath", "vectorDbPath"],
+        argNames: ["dbPath", "vectorDbPath", "modelPath"],
       );
 
   @override
@@ -283,6 +288,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  String? dco_decode_opt_String(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_String(raw);
+  }
+
+  @protected
   SearchResult dco_decode_search_result(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -387,6 +398,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  String? sse_decode_opt_String(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_String(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   SearchResult sse_decode_search_result(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_id = sse_decode_i_32(deserializer);
@@ -485,6 +507,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_search_result(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_String(String? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_String(self, serializer);
     }
   }
 

@@ -21,9 +21,12 @@ Future<void> main() async {
   // Ensure data dir exists
   Directory('$dir/data').createSync(recursive: true);
 
-  // Initialize AppCore
-  appCore =
-      await AppCore.newInstance(dbPath: dbPath, vectorDbPath: vectorDbPath);
+  // Initialize AppCore with a local model path to avoid downloading on simulator
+  appCore = await AppCore.newInstance(
+    dbPath: dbPath,
+    vectorDbPath: vectorDbPath,
+    modelPath: '/Users/finchking/.cache/huggingface/hub/models--BAAI--bge-small-zh-v1.5/snapshots/7999e1d3359715c523056ef9478215996d62a620',
+  );
 
   runApp(const NanoVectorApp());
 }

@@ -15,9 +15,9 @@ pub struct AppCore {
 }
 
 impl AppCore {
-    pub async fn new(db_path: String, vector_db_path: String) -> Result<AppCore> {
+    pub async fn new(db_path: String, vector_db_path: String, model_path: Option<String>) -> Result<AppCore> {
         let db = DatabaseManager::new(&db_path, &vector_db_path).await?;
-        let model = TextEmbeddingModel::new().await?;
+        let model = TextEmbeddingModel::new(model_path).await?;
         Ok(AppCore {
             db: tokio::sync::Mutex::new(db),
             model,
