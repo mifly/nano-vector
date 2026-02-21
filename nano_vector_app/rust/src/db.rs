@@ -1,26 +1,19 @@
 use anyhow::{Context, Result};
-use arrow_array::{
-    builder::{Float32Builder, FixedSizeListBuilder, Int32Builder, StringBuilder},
-    cast::AsArray,
-    RecordBatch,
-    RecordBatchIterator,
-};
-use arrow_schema::{DataType, Field, Schema};
-use futures::StreamExt;
-use lancedb::connection::Connection;
-use lancedb::table::Table;
-use lancedb::query::{ExecutableQuery, QueryBase};
 use rusqlite::params;
 use std::sync::Arc;
 
 pub struct DatabaseManager {
     pub sqlite_conn: rusqlite::Connection,
-    pub lance_db: Connection,
-    pub lance_table: Option<Table>,
 }
 
 impl DatabaseManager {
-    pub async fn new(db_path: &str, vector_db_path: &str) -> Result<Self> {
+    pub async fn new(db_path: &str, _vector_db_path: &str) -> Result<Self> {
+        unsafe {
+            rusqlite::ffi::sqlite3_auto_extension(Some(std::mem::transmute(
+                sqlite_vec::sqlite3_vec_init as *const (),
+            )));
+        }
+
         let sqlite_conn = rusqlite::Connection::open(db_path)
             .context("Failed to open SQLite database")?;
 
@@ -45,22 +38,17 @@ impl DatabaseManager {
             [],
         )?;
 
-        // Initialize LanceDB connection
-        let lance_db = lancedb::connect(vector_db_path).execute().await
-            .context("Failed to connect to LanceDB")?;
+        // Initialize vec0 extension table
+        // bge-small-zh-v1.5 has 512 embedding dimensions
+        sqlite_conn.execute(
+            "CREATE VIRTUAL TABLE IF NOT EXISTS vector_chunks USING vec0(
+                id INTEGER PRIMARY KEY,
+                vector float[512]
+            )",
+            [],
+        )?;
 
-        let table_names = lance_db.table_names().execute().await?;
-        let table = if table_names.contains(&"vector_chunks".to_string()) {
-            Some(lance_db.open_table("vector_chunks").execute().await?)
-        } else {
-            None
-        };
-
-        Ok(Self {
-            sqlite_conn,
-            lance_db,
-            lance_table: table,
-        })
+        Ok(Self { sqlite_conn })
     }
 
     pub fn insert_document(&self, content: &str) -> Result<i64> {
@@ -79,92 +67,56 @@ impl DatabaseManager {
         Ok(self.sqlite_conn.last_insert_rowid())
     }
 
-    pub async fn insert_vectors(&mut self, ids: Vec<i32>, texts: Vec<String>, embeddings: Vec<Vec<f32>>) -> Result<()> {
+    pub async fn insert_vectors(&mut self, ids: Vec<i32>, _texts: Vec<String>, embeddings: Vec<Vec<f32>>) -> Result<()> {
         if ids.is_empty() {
             return Ok(());
         }
 
-        // Define LanceDB schema
-        let dim = embeddings[0].len() as i32;
-        let schema = Arc::new(Schema::new(vec![
-            Field::new("id", DataType::Int32, false),
-            Field::new("text", DataType::Utf8, false),
-            Field::new(
-                "vector",
-                DataType::FixedSizeList(
-                    Arc::new(Field::new("item", DataType::Float32, true)),
-                    dim,
-                ),
-                false,
-            ),
-        ]));
-
-        // Build Arrow arrays
-        let mut id_builder = Int32Builder::new();
-        let mut text_builder = StringBuilder::new();
-        
-        let vector_values_builder = Float32Builder::new();
-        let mut vector_builder = FixedSizeListBuilder::new(vector_values_builder, dim);
-
-        for (i, ((id, text), embed)) in ids.into_iter().zip(texts.into_iter()).zip(embeddings.into_iter()).enumerate() {
-            id_builder.append_value(id);
-            text_builder.append_value(text);
-            
-            for &val in &embed {
-                vector_builder.values().append_value(val);
-            }
-            vector_builder.append(true);
-        }
-
-        let id_array = Arc::new(id_builder.finish());
-        let text_array = Arc::new(text_builder.finish());
-        let vector_array = Arc::new(vector_builder.finish());
-
-        let batch = RecordBatch::try_new(
-            schema.clone(),
-            vec![id_array, text_array, vector_array],
-        )?;
-        
-        let batches = RecordBatchIterator::new(vec![Ok(batch)], schema.clone());
-
-        if let Some(table) = &self.lance_table {
-            table.add(batches).execute().await?;
-        } else {
-            let table = self.lance_db
-                .create_table("vector_chunks", batches)
-                .execute()
-                .await?;
-            self.lance_table = Some(table);
+        for (id, embed) in ids.into_iter().zip(embeddings.into_iter()) {
+            let vector_bytes: &[u8] = unsafe {
+                std::slice::from_raw_parts(
+                    embed.as_ptr() as *const u8,
+                    embed.len() * std::mem::size_of::<f32>(),
+                )
+            };
+            self.sqlite_conn.execute(
+                "INSERT INTO vector_chunks (id, vector) VALUES (?1, ?2)",
+                params![id as i64, vector_bytes],
+            )?;
         }
 
         Ok(())
     }
 
     pub async fn search_vectors(&mut self, query_embedding: Vec<f32>, limit: usize) -> Result<Vec<(i32, String, f32)>> {
-        let table = self.lance_table.as_ref()
-            .context("Vector table not initialized (empty db)")?;
-            
-        let mut search = table.query().nearest_to(query_embedding)?.limit(limit).execute().await?;
+        let query_bytes: &[u8] = unsafe {
+            std::slice::from_raw_parts(
+                query_embedding.as_ptr() as *const u8,
+                query_embedding.len() * std::mem::size_of::<f32>(),
+            )
+        };
+        
+        // Use JOIN to get the text, and match the vector
+        let mut stmt = self.sqlite_conn.prepare(
+            "SELECT v.id, c.chunk_text, distance
+             FROM vector_chunks v
+             JOIN chunks c ON v.id = c.id
+             WHERE vector MATCH ?1 AND k = ?2
+             ORDER BY distance"
+        )?;
+
+        let rows = stmt.query_map(params![query_bytes, limit as i64], |row| {
+            let id: i32 = row.get(0)?;
+            let text: String = row.get(1)?;
+            let distance: f32 = row.get(2)?;
+            Ok((id, text, distance))
+        })?;
 
         let mut results = Vec::new();
-
-        while let Some(batch_res) = search.next().await {
-            let batch: RecordBatch = batch_res?;
-            let id_array = batch.column_by_name("id").unwrap().as_primitive::<arrow_array::types::Int32Type>();
-            let text_array = batch.column_by_name("text").unwrap().as_string::<i32>();
-            
-            // LanceDB also returns an implicit _distance column in search results
-            let distance_array = batch.column_by_name("_distance").unwrap().as_primitive::<arrow_array::types::Float32Type>();
-            
-            for i in 0..batch.num_rows() {
-                results.push((
-                    id_array.value(i),
-                    text_array.value(i).to_string(),
-                    distance_array.value(i),
-                ));
-            }
+        for row in rows {
+            results.push(row?);
         }
-        
+
         Ok(results)
     }
 }

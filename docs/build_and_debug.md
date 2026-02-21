@@ -7,7 +7,6 @@
 ### 基础工具
 *   **Rust**: 建议版本 1.75+ (本项目使用 2024 edition 预览版或 stable)。
 *   **Flutter SDK**: 建议版本 3.24.0+。
-*   **Protoc**: LanceDB 编译需要 protobuf 编译器 (`protoc`)。
 *   **C 编译器**: Linux 下需要 `clang` 和 `cmake`。
 
 ### 安装依赖 (Ubuntu/Debian)
@@ -15,11 +14,6 @@
 # 安装编译工具
 sudo apt-get update
 sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev
-
-# 安装 protoc (建议版本 25+)
-curl -LO https://github.com/protocolbuffers/protobuf/releases/download/v25.1/protoc-25.1-linux-x86_64.zip
-unzip protoc-25.1-linux-x86_64.zip -d ~/.local
-export PATH="$HOME/.local/bin:$PATH"
 ```
 
 ### 安装依赖 (macOS)
@@ -28,10 +22,7 @@ export PATH="$HOME/.local/bin:$PATH"
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
 # 安装编译工具
-brew install cmake ninja protobuf
-
-# 验证 protoc 安装
-protoc --version  # 建议 25+
+brew install cmake ninja
 ```
 
 > **注意**: macOS 下还需要完整安装 Xcode (包括 Command Line Tools)，可通过 `xcode-select --install` 安装命令行工具。
@@ -62,7 +53,6 @@ cargo run -- search --query "搜索词"
 flutter_rust_bridge_codegen generate
 
 # 编译运行
-export PROTOC=$HOME/.local/bin/protoc  # 确保编译能找到 protoc
 flutter run -d linux
 ```
 
@@ -78,8 +68,6 @@ flutter_rust_bridge_codegen generate
 # 编译运行 macOS 桌面应用
 flutter run -d macos
 ```
-
-> **提示**: macOS 下 protoc 通过 Homebrew 安装后会自动加入 PATH，无需手动设置环境变量。
 
 ## 4. 调试与常见问题
 
@@ -137,6 +125,5 @@ flutter_rust_bridge_codegen generate
 
 ## 5. 关键依赖版本
 *   `flutter_rust_bridge`: `2.11.1`
-*   `lancedb`: `0.26.2`
+*   `sqlite-vec`: `0.1.6`
 *   `candle-core`: `0.9.2`
-*   `arrow-array`: `57.3.0`

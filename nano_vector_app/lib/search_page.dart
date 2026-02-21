@@ -121,7 +121,7 @@ class _SearchPageState extends State<SearchPage> {
                     separatorBuilder: (context, index) => const Divider(),
                     itemBuilder: (context, index) {
                       final result = _results[index];
-                      // distance in lancedb: lower is better (usually L2 distance),
+                      // distance in sqlite-vec: lower is better (usually L2 distance),
                       // but we show the score directly.
                       return ListTile(
                         title: Text(result.text),

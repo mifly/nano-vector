@@ -38,7 +38,7 @@ async fn main() -> Result<()> {
     std::fs::create_dir_all("data")?;
 
     println!("Initializing Database...");
-    let mut db_manager = DatabaseManager::new("data/app.db", "data/lancedb").await?;
+    let mut db_manager = DatabaseManager::new("data/app.db", "data/vector_db").await?;
 
     match &cli.command {
         Commands::Index { text } => {

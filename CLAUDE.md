@@ -17,7 +17,6 @@ Both use the BAAI/bge-small-zh-v1.5 Chinese BERT model (downloaded from Hugging 
 - **Rust**: 1.75+ (项目使用 2024 edition)
 - **Flutter SDK**: 3.24.0+
 - **Xcode**: 需要完整安装 (包括 Command Line Tools)
-- **protoc**: LanceDB 编译依赖
 
 ### 安装依赖
 ```bash
@@ -25,10 +24,7 @@ Both use the BAAI/bge-small-zh-v1.5 Chinese BERT model (downloaded from Hugging 
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
 # 安装编译工具
-brew install cmake ninja protobuf
-
-# 验证 protoc 安装
-protoc --version  # 建议 25+
+brew install cmake ninja
 ```
 
 ### 编译运行 (macOS 桌面)
@@ -51,7 +47,7 @@ flutter run -d macos
 
 **macOS 网络权限**: 如遇 `Operation not permitted (os error 1)` 错误，需确保 `macos/Runner/*.entitlements` 包含 `com.apple.security.network.client` 权限。
 
-**数据目录**: 开发时数据保存在 `nano_vector_app/data/` (SQLite + LanceDB)。
+**数据目录**: 开发时数据保存在 `nano_vector_app/data/` (SQLite + sqlite-vec)。
 
 **FRB 绑定问题**: 新增 Rust API 后 Flutter 侧无法调用时，重新执行 `flutter_rust_bridge_codegen generate`，确保函数为 `pub` 且参数类型可序列化。
 
@@ -95,16 +91,16 @@ cargo test               # Run tests
 ```
 Text Input → Tokenize (bge-small-zh) → Chunk (200 tokens max) → Generate Embeddings → Store
                                                                         ↓
-                                                   SQLite (documents, chunks) + LanceDB (vectors)
+                                                   SQLite (documents, chunks) + sqlite-vec (vectors)
 
-Query → Add Chinese prefix → Generate Query Embedding → Vector Search (LanceDB) → Return ranked chunks
+Query → Add Chinese prefix → Generate Query Embedding → Vector Search (sqlite-vec) → Return ranked chunks
 ```
 
 ### Key Components
 
 **Rust Core (`embeddings.rs`, `db.rs`):**
 - `TextEmbeddingModel` - Loads BERT model via candle, handles tokenization/embedding generation
-- `DatabaseManager` - Manages SQLite (metadata) and LanceDB (vectors) connections
+- `DatabaseManager` - Manages SQLite (metadata) and sqlite-vec (vectors) connections
 - Query prefix for retrieval: `"为这个句子生成表示以用于检索相关文章："`
 
 **Flutter FFI (`nano_vector_app/rust/src/api/simple.rs`):**
@@ -122,14 +118,14 @@ Query → Add Chinese prefix → Generate Query Embedding → Vector Search (Lan
 - `documents(id, content, created_at)` - Full document text
 - `chunks(id, doc_id, chunk_text, chunk_index)` - Chunked text pieces
 
-**LanceDB:**
-- `vector_chunks` table with `id`, `text`, `vector` (512-dim float32 array)
+**sqlite-vec:**
+- `vector_chunks` virtual table with `id` and `vector` (float[512])
 
 ## Dependencies
 
 Key Rust crates:
 - `candle-core/nn/transformers` - ML inference
-- `lancedb` - Vector database
+- `sqlite-vec` - Vector database extension for SQLite
 - `rusqlite` - SQLite
 - `hf-hub` - Hugging Face model downloads
 - `tokenizers` - Text tokenization

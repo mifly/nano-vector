@@ -14,7 +14,7 @@ Future<void> main() async {
   // Initialize paths in app's local directory
   final dir = Directory.current.path;
   final dbPath = '$dir/data/app.db';
-  final vectorDbPath = '$dir/data/lancedb';
+  final vectorDbPath = '$dir/data/vector_db';
 
   // Ensure data dir exists
   Directory('$dir/data').createSync(recursive: true);

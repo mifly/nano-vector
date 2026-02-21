@@ -62,7 +62,7 @@ class _IndexPageState extends State<IndexPage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const Text(
-            '将文本分片后保存到关系型数据库 (SQLite) 和向量数据库 (LanceDB) 中。支持最大 4000 字符。',
+            '将文本分片后保存到关系型数据库 (SQLite) 和向量数据库 (sqlite-vec) 中。支持最大 4000 字符。',
             style: TextStyle(color: Colors.grey),
           ),
           const SizedBox(height: 16),

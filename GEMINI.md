@@ -11,7 +11,7 @@ The core machine learning and database operations are handled by Rust, ensuring 
 *   **Rust**: Core engine for ML inference and database management.
 *   **flutter_rust_bridge (FRB v2)**: Facilitates seamless communication between Dart (Flutter) and Rust.
 *   **Candle (`candle-core`)**: A minimalist ML framework for Rust, used here to run the `bge-small-zh-v1.5` BERT model for generating text embeddings locally without internet access.
-*   **LanceDB**: High-performance vector database used to store and query the generated embeddings.
+*   **sqlite-vec**: High-performance vector database extension used to store and query the generated embeddings.
 *   **SQLite (`rusqlite`)**: Relational database used to store original document text and chunk metadata.
 
 ## Directory Structure
@@ -28,7 +28,6 @@ The core machine learning and database operations are handled by Rust, ensuring 
 ### Prerequisites
 *   **Rust**: 1.75+ (using 2024 edition).
 *   **Flutter SDK**: 3.24.0+.
-*   **protoc**: Protocol Buffers compiler (required by LanceDB). Recommended version 25+.
 *   **C/C++ Build Tools**: Xcode Command Line Tools on macOS; `clang`, `cmake`, etc. on Linux.
 
 ### Running the Flutter App (macOS Desktop example)
@@ -61,6 +60,6 @@ cargo run -- search --query "Your search query" --limit 5
 
 *   **Model Download**: On the first run, the app will download the `bge-small-zh-v1.5` model (~100MB) from Hugging Face to the local cache directory (`~/.cache/huggingface/`). Ensure a stable internet connection for the initial setup.
 *   **FFI Code Generation**: Whenever changes are made to the Rust functions exposed to Dart (typically in `nano_vector_app/rust/src/api/`), you **must** run `flutter_rust_bridge_codegen generate` in the `nano_vector_app/` directory to update the bindings.
-*   **Data Storage**: During development, databases (SQLite and LanceDB) are stored in `nano_vector_app/data/`.
+*   **Data Storage**: During development, databases (SQLite and sqlite-vec) are stored in `nano_vector_app/data/`.
 *   **macOS Network Permissions**: If the model fails to download on macOS with an `Operation not permitted` error, ensure the app's entitlements (`macos/Runner/*.entitlements`) include the `<key>com.apple.security.network.client</key>` with a `<true/>` value.
 *   **Concurrency**: The Rust SQLite connection (`rusqlite::Connection`) is wrapped in a `tokio::sync::Mutex` within the `DatabaseManager` to ensure it is `Send + Sync` safe for Flutter's asynchronous handlers.
