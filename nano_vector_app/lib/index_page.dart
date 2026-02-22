@@ -1,9 +1,6 @@
-import 'dart:io' show Platform;
-
 import 'package:flutter/material.dart';
 import 'package:nano_vector_app/main.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
-import 'package:permission_handler/permission_handler.dart';
 
 class IndexPage extends StatefulWidget {
   const IndexPage({super.key});
@@ -47,17 +44,22 @@ class _IndexPageState extends State<IndexPage> {
   }
 
   Future<void> _startListening() async {
-    // Check permissions (only on mobile platforms where permission_handler is implemented)
-    if (Platform.isIOS || Platform.isAndroid) {
-      final micStatus = await Permission.microphone.request();
-      if (micStatus != PermissionStatus.granted) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('需要麦克风权限才能进行语音输入')),
-          );
-        }
-        return;
-      }
+    // speech_to_text plugin handles permissions internally via initialize()
+    if (!_speechEnabled) {
+      // Try to re-initialize if not enabled
+      _speechEnabled = await _speechToText.initialize(
+        onError: (val) => debugPrint('onError: $val'),
+        onStatus: (val) {
+          debugPrint('onStatus: $val');
+          if (val == 'done' || val == 'notListening') {
+            if (mounted) {
+              setState(() {
+                _isListening = false;
+              });
+            }
+          }
+        },
+      );
     }
 
     if (_speechEnabled) {

@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:nano_vector_app/src/rust/api/simple.dart';
 import 'package:nano_vector_app/src/rust/frb_generated.dart';
@@ -7,6 +8,40 @@ import 'package:nano_vector_app/index_page.dart';
 import 'package:nano_vector_app/search_page.dart';
 
 late AppCore appCore;
+
+/// Extract bundled model files from assets to documents directory on first launch
+Future<String> _ensureModelFiles(String baseDir) async {
+  final modelDir = '$baseDir/model';
+  final modelDirObj = Directory(modelDir);
+
+  // Check if model files already exist
+  final configFile = File('$modelDir/config.json');
+  final tokenizerFile = File('$modelDir/tokenizer.json');
+  final modelFile = File('$modelDir/model.safetensors');
+
+  if (await configFile.exists() &&
+      await tokenizerFile.exists() &&
+      await modelFile.exists()) {
+    debugPrint('Model files already exist at: $modelDir');
+    return modelDir;
+  }
+
+  // Create model directory
+  await modelDirObj.create(recursive: true);
+  debugPrint('Extracting model files to: $modelDir');
+
+  // Copy model files from assets
+  final files = ['config.json', 'tokenizer.json', 'model.safetensors'];
+  for (final fileName in files) {
+    debugPrint('Copying $fileName...');
+    final data = await rootBundle.load('assets/model/$fileName');
+    final file = File('$modelDir/$fileName');
+    await file.writeAsBytes(data.buffer.asUint8List());
+  }
+
+  debugPrint('Model files extracted successfully');
+  return modelDir;
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,11 +56,13 @@ Future<void> main() async {
   // Ensure data dir exists
   Directory('$dir/data').createSync(recursive: true);
 
-  // Initialize AppCore with a local model path to avoid downloading on simulator
+  // Extract bundled model files on first launch
+  final modelPath = await _ensureModelFiles(dir);
+
   appCore = await AppCore.newInstance(
     dbPath: dbPath,
     vectorDbPath: vectorDbPath,
-    modelPath: '/Users/finchking/.cache/huggingface/hub/models--BAAI--bge-small-zh-v1.5/snapshots/7999e1d3359715c523056ef9478215996d62a620',
+    modelPath: modelPath,
   );
 
   runApp(const NanoVectorApp());
