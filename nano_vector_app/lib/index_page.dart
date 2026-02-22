@@ -73,6 +73,7 @@ class _IndexPageState extends State<IndexPage> {
       });
       
       await _speechToText.listen(
+        localeId: 'zh_CN',
         onResult: (result) {
           if (mounted) {
             setState(() {
