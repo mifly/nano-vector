@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:nano_vector_app/main.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
@@ -45,15 +47,17 @@ class _IndexPageState extends State<IndexPage> {
   }
 
   Future<void> _startListening() async {
-    // Check permissions
-    final micStatus = await Permission.microphone.request();
-    if (micStatus != PermissionStatus.granted) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('需要麦克风权限才能进行语音输入')),
-        );
+    // Check permissions (only on mobile platforms where permission_handler is implemented)
+    if (Platform.isIOS || Platform.isAndroid) {
+      final micStatus = await Permission.microphone.request();
+      if (micStatus != PermissionStatus.granted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('需要麦克风权限才能进行语音输入')),
+          );
+        }
+        return;
       }
-      return;
     }
 
     if (_speechEnabled) {
